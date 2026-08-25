@@ -23,6 +23,7 @@ import type {
   TeamRole,
   UsageExportPage,
   UsageReport,
+  UsageTimeseries,
   VirtualKeyRecord,
 } from "@/lib/types";
 import type { CombinedUsageResponse } from "@/app/api/usage/route";
@@ -119,6 +120,10 @@ export const api = {
     request<ProviderHealthMap>(`/api/gateways/${gatewayId}/providers`),
   usage: (gatewayId: string, query: UsageQuery) =>
     request<UsageReport>(`/api/gateways/${gatewayId}/usage${usageQueryString(query)}`),
+  usageTimeseries: (gatewayId: string, query: UsageQuery) =>
+    request<UsageTimeseries>(
+      `/api/gateways/${gatewayId}/usage/timeseries${usageQueryString(query)}`,
+    ),
   usageExport: (
     gatewayId: string,
     query: { since?: string; until?: string; cursor?: number; limit?: number },

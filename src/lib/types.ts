@@ -240,6 +240,29 @@ export interface UsageExportPage {
   next_cursor: number | null;
 }
 
+/** One group's series in GET /api/gateways/[id]/usage/timeseries. */
+export interface TimeseriesGroup {
+  /** The group value (a model id, provider name, … per the grouping). */
+  name: string;
+  /** Aligned to `timestamps`, one value per bucket. */
+  cost: number[];
+  requests: number[];
+  tokens: number[];
+}
+
+/** Time-bucketed usage built from the raw export (ADR 010). */
+export interface UsageTimeseries {
+  since: number;
+  until: number;
+  /** Bucket width in seconds; timestamps are bucket starts. */
+  bucket_secs: number;
+  timestamps: number[];
+  /** Ordered by total cost descending; the tail beyond the top N is "other". */
+  groups: TimeseriesGroup[];
+  /** True when the row cap was hit and later rows were not bucketed. */
+  truncated: boolean;
+}
+
 /** Body accepted by POST /api/gateways/[id]/keys. */
 export interface NewKeyBody {
   name: string;

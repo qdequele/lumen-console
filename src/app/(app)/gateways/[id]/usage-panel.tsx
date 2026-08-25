@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import { CircleAlert, Download } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import { useGatewayConfig, useGroups, useKeys, useUsage } from "@/lib/hooks";
+import {
+  useGatewayConfig,
+  useGroups,
+  useKeys,
+  useUsage,
+  useUsageTimeseries,
+} from "@/lib/hooks";
 import { sinceForWindow } from "@/lib/format";
 import type { UsageRow } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,6 +27,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UsageControls } from "@/components/usage-controls";
 import { UsageCostChart } from "@/components/usage-chart";
 import { UsageTable } from "@/components/usage-table";
+import {
+  UsageTimeseriesChart,
+  type TimeseriesMetric,
+} from "@/components/usage-timeseries-chart";
 
 const ALL = "__all__";
 
@@ -69,6 +79,7 @@ export function UsagePanel({ gatewayId }: { gatewayId: string }) {
   const [capability, setCapability] = useState(ALL);
   const [keyId, setKeyId] = useState(ALL);
   const [groupId, setGroupId] = useState(ALL);
+  const [metric, setMetric] = useState<TimeseriesMetric>("cost");
   const [exporting, setExporting] = useState(false);
 
   // Freeze `since` per (hours) selection so the query key stays stable
@@ -79,15 +90,23 @@ export function UsagePanel({ gatewayId }: { gatewayId: string }) {
   const keys = useKeys(gatewayId);
   const groups = useGroups(gatewayId);
 
-  const usage = useUsage(gatewayId, {
-    since,
-    group_by: groupBy,
-    limit: 1000,
+  const filterQuery = {
     model: model === ALL ? undefined : model,
     provider: provider === ALL ? undefined : provider,
     capability: capability === ALL ? undefined : capability,
     key_id: keyId === ALL ? undefined : keyId,
     group_id: groupId === ALL ? undefined : groupId,
+  };
+  const usage = useUsage(gatewayId, {
+    since,
+    group_by: groupBy,
+    limit: 1000,
+    ...filterQuery,
+  });
+  const timeseries = useUsageTimeseries(gatewayId, {
+    since,
+    group_by: groupBy,
+    ...filterQuery,
   });
 
   const providerOptions = (config.data?.providers ?? []).map((entry) => ({
@@ -192,6 +211,41 @@ export function UsagePanel({ gatewayId }: { gatewayId: string }) {
           {exporting ? "Exporting…" : "Export CSV"}
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              {metric === "cost" ? "Cost" : metric === "requests" ? "Requests" : "Tokens"} over
+              time, by {groupBy.replace("_", " ")}
+              {timeseries.data?.truncated && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  (row cap reached — early part of the window only)
+                </span>
+              )}
+            </CardTitle>
+            <Select value={metric} onValueChange={(value) => setMetric(value as TimeseriesMetric)}>
+              <SelectTrigger size="sm" className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cost">Cost</SelectItem>
+                <SelectItem value="requests">Requests</SelectItem>
+                <SelectItem value="tokens">Tokens</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {timeseries.isLoading && <Skeleton className="h-64" />}
+          {timeseries.isError && (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              {(timeseries.error as Error).message}
+            </p>
+          )}
+          {timeseries.data && <UsageTimeseriesChart data={timeseries.data} metric={metric} />}
+        </CardContent>
+      </Card>
 
       {usage.isError && (
         <Alert variant="destructive">

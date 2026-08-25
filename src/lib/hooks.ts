@@ -83,6 +83,16 @@ export function useUsage(gatewayId: string, query: UsageQuery) {
   });
 }
 
+export function useUsageTimeseries(gatewayId: string, query: UsageQuery) {
+  return useQuery({
+    queryKey: ["usage-timeseries", gatewayId, query],
+    queryFn: () => api.usageTimeseries(gatewayId, query),
+    // Bucketing paginates the raw export server-side — keep it fresh but
+    // don't refetch on every focus.
+    staleTime: 60_000,
+  });
+}
+
 export function useCombinedUsage(query: UsageQuery) {
   return useQuery({
     queryKey: ["combined-usage", query],

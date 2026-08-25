@@ -93,6 +93,14 @@ export function useUsageTimeseries(gatewayId: string, query: UsageQuery) {
   });
 }
 
+export function useCombinedUsageTimeseries(query: UsageQuery) {
+  return useQuery({
+    queryKey: ["combined-usage-timeseries", query],
+    queryFn: () => api.combinedUsageTimeseries(query),
+    staleTime: 60_000,
+  });
+}
+
 export function useCombinedUsage(query: UsageQuery) {
   return useQuery({
     queryKey: ["combined-usage", query],

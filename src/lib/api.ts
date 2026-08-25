@@ -137,6 +137,8 @@ export const api = {
   },
   combinedUsage: (query: UsageQuery) =>
     request<CombinedUsageResponse>(`/api/usage${usageQueryString(query)}`),
+  combinedUsageTimeseries: (query: UsageQuery) =>
+    request<UsageTimeseries>(`/api/usage/timeseries${usageQueryString(query)}`),
 
   keys: (gatewayId: string, includeDeleted = false) =>
     request<VirtualKeyRecord[]>(

@@ -109,11 +109,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // the active section instead, so the name never repeats.
   const pageTitle = gateway
     ? (GATEWAY_NAV.find((item) => item.tab === activeTab)?.label ?? "Overview")
-    : pathname.startsWith("/usage")
-      ? "Usage across gateways"
-      : pathname.startsWith("/teams")
-        ? "Teams"
-        : "Welcome";
+    : pathname.startsWith("/teams")
+      ? "Teams"
+      : "Welcome";
 
   const themeChoices = [
     { value: "system", icon: <Monitor className="size-3.5" />, label: "System theme" },
@@ -148,8 +146,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     aria-label={gateway.reachable === "up" ? "reachable" : "unreachable"}
                   />
                 </>
-              ) : pathname.startsWith("/usage") ? (
-                <span className="truncate">All gateways</span>
               ) : (
                 <span className="truncate text-muted-foreground">Select a gateway</span>
               )}
@@ -184,10 +180,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="px-2 py-1.5 text-xs text-muted-foreground">No gateways yet.</p>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/usage")}>
-                <ChartColumn className="size-4" />
-                Usage across gateways
-              </DropdownMenuItem>
               {adminTeams.length > 0 && (
                 <DropdownMenuItem onClick={() => setRegisterOpen(true)}>
                   <Plus className="size-4" />
@@ -302,7 +294,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
               {/* Gateway health, at a glance. */}
               <Link
-                href="/usage"
+                href="/"
                 className={cn(
                   "flex items-center justify-between px-2 py-2 text-sm",
                   downCount === 0 ? "text-chart-1" : "text-destructive",

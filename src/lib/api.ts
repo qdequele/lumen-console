@@ -26,7 +26,6 @@ import type {
   UsageTimeseries,
   VirtualKeyRecord,
 } from "@/lib/types";
-import type { CombinedUsageResponse } from "@/app/api/usage/route";
 
 export class ApiError extends Error {
   constructor(
@@ -135,10 +134,6 @@ export const api = {
     const suffix = params.size > 0 ? `?${params.toString()}` : "";
     return request<UsageExportPage>(`/api/gateways/${gatewayId}/usage/export${suffix}`);
   },
-  combinedUsage: (query: UsageQuery) =>
-    request<CombinedUsageResponse>(`/api/usage${usageQueryString(query)}`),
-  combinedUsageTimeseries: (query: UsageQuery) =>
-    request<UsageTimeseries>(`/api/usage/timeseries${usageQueryString(query)}`),
 
   keys: (gatewayId: string, includeDeleted = false) =>
     request<VirtualKeyRecord[]>(

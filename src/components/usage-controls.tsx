@@ -24,7 +24,7 @@ interface UsageControlsProps {
   onHoursChange: (hours: number) => void;
   groupBy: string;
   onGroupByChange: (groupBy: string) => void;
-  /** Restrict group_by choices (the combined view drops key/group dimensions). */
+  /** Restrict the group_by choices offered. */
   groupByOptions?: ReadonlyArray<{ value: string; label: string }>;
 }
 

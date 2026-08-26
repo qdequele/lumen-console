@@ -3,7 +3,7 @@ import type { TimeseriesGroup, UsageRow } from "@/lib/types";
 
 /**
  * Shared time-bucketing over raw usage rows (GET /admin/usage/export). Used
- * by the per-gateway and combined timeseries routes; raw rows never reach
+ * by the per-gateway timeseries route; raw rows never reach
  * the browser.
  */
 

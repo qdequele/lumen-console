@@ -15,11 +15,10 @@ administer them through each gateway's existing `/admin` API.
   stored, and is never shown or sent to a browser again.
 - **Gateways** — every gateway across your teams with reachability,
   provider health probes and last-24h spend/requests/tokens.
-- **Usage** — one `GET /admin/usage` query fanned out to every gateway
-  and merged (model / provider / capability / status dimensions). Per
-  gateway, usage filters by key, group, model, provider and capability,
-  and raw rows export as CSV through the cursor-paginated
-  `GET /admin/usage/export` (ADR 010).
+- **Usage** — per-gateway dashboards over `GET /admin/usage`: cost over
+  time (bucketed server-side from the raw export), filters by key, group,
+  model, provider and capability, and CSV export through the
+  cursor-paginated `GET /admin/usage/export` (ADR 010).
 - **Per-gateway management** — keys (create with one-time plaintext, budgets,
   limits, enable/disable, rotate, grant top-ups, soft-delete), budget groups
   (ADR 009), provider health and encrypted provider-key rotation.
@@ -69,8 +68,8 @@ Browser ── Next.js (App Router) ── /api/* route handlers ──► Lumen
   alone cannot recover one.
 - **Roles**: `owner`/`admin` mutate (register gateways, manage keys, invite),
   `viewer` gets read-only dashboards. Enforced server-side per gateway.
-- **A project is pinned to one gateway** (ADR 010), so key/group ids are
-  gateway-local and the combined usage view only merges gateway-agnostic dimensions.
+- **A project is pinned to one gateway** (ADR 010), so keys, groups and
+  usage are always viewed on their home gateway.
 
 ## Development
 

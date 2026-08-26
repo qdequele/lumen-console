@@ -1,10 +1,9 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   Asterisk,
   Cable,
   ChartColumn,
@@ -16,15 +15,16 @@ import {
   LogOut,
   Monitor,
   Moon,
-  Server,
+  Plus,
   Settings,
   Sun,
   Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { useGateways, useMe, useTeams } from "@/lib/hooks";
+import { useCreateGateway, useGateways, useMe, useTeams } from "@/lib/hooks";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { GatewayDialog } from "@/components/gateway-dialog";
 import { ScopeAvatar } from "@/components/scope-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -87,12 +87,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const gateways = useGateways();
   const teams = useTeams();
   const me = useMe();
+  const createGateway = useCreateGateway();
   const { theme, setTheme } = useTheme();
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   const gatewayId = pathname.startsWith("/gateways/") ? pathname.split("/")[2] : null;
   const gateway = gatewayId ? gateways.data?.find((entry) => entry.id === gatewayId) : null;
   const activeTab = searchParams.get("tab") ?? "overview";
 
+  const adminTeams = teams.data?.filter((team) => team.role !== "viewer") ?? [];
   const downCount =
     gateways.data?.filter((entry) => entry.reachable === "down").length ?? 0;
 
@@ -107,10 +110,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pageTitle = gateway
     ? (GATEWAY_NAV.find((item) => item.tab === activeTab)?.label ?? "Overview")
     : pathname.startsWith("/usage")
-      ? "Usage"
+      ? "Usage across gateways"
       : pathname.startsWith("/teams")
         ? "Teams"
-        : "Gateways";
+        : "Welcome";
 
   const themeChoices = [
     { value: "system", icon: <Monitor className="size-3.5" />, label: "System theme" },
@@ -145,18 +148,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     aria-label={gateway.reachable === "up" ? "reachable" : "unreachable"}
                   />
                 </>
-              ) : (
+              ) : pathname.startsWith("/usage") ? (
                 <span className="truncate">All gateways</span>
+              ) : (
+                <span className="truncate text-muted-foreground">Select a gateway</span>
               )}
               <ChevronsUpDown className="ml-auto size-3.5 shrink-0 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-60">
-              <DropdownMenuItem onClick={() => router.push("/")}>
-                <LayoutGrid className="size-4" />
-                All gateways
-                {!gateway && <Check className="ml-auto size-4" />}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               {(gateways.data ?? []).map((entry) => (
                 <DropdownMenuItem
                   key={entry.id}
@@ -182,63 +181,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </DropdownMenuItem>
               ))}
               {gateways.data?.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                  No gateways yet — register one from the Gateways page.
-                </p>
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">No gateways yet.</p>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push("/usage")}>
+                <ChartColumn className="size-4" />
+                Usage across gateways
+              </DropdownMenuItem>
+              {adminTeams.length > 0 && (
+                <DropdownMenuItem onClick={() => setRegisterOpen(true)}>
+                  <Plus className="size-4" />
+                  Register gateway…
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
-        {/* Navigation */}
+        {/* Navigation: gateway sections only — there is no other layer. */}
         <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4">
-          {gateway ? (
-            <>
-              <Link
-                href="/"
-                className="mb-2 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
-              >
-                <ArrowLeft className="size-4" />
-                <span className="truncate">All gateways</span>
-              </Link>
-              {GATEWAY_NAV.filter(
-                (item) => item.tab !== "settings" || gateway.role !== "viewer",
-              ).map((item) => (
-                <NavItem
-                  key={item.tab}
-                  href={
-                    item.tab === "overview"
-                      ? `/gateways/${gateway.id}`
-                      : `/gateways/${gateway.id}?tab=${item.tab}`
-                  }
-                  icon={item.icon}
-                  label={item.label}
-                  active={activeTab === item.tab}
-                />
-              ))}
-            </>
-          ) : (
-            <>
+          {gateway &&
+            GATEWAY_NAV.filter(
+              (item) => item.tab !== "settings" || gateway.role !== "viewer",
+            ).map((item) => (
               <NavItem
-                href="/"
-                icon={<Server />}
-                label="Gateways"
-                active={pathname === "/"}
+                key={item.tab}
+                href={
+                  item.tab === "overview"
+                    ? `/gateways/${gateway.id}`
+                    : `/gateways/${gateway.id}?tab=${item.tab}`
+                }
+                icon={item.icon}
+                label={item.label}
+                active={activeTab === item.tab}
               />
-              <NavItem
-                href="/usage"
-                icon={<ChartColumn />}
-                label="Usage"
-                active={pathname.startsWith("/usage")}
-              />
-              <NavItem
-                href="/teams"
-                icon={<Users />}
-                label="Teams"
-                active={pathname.startsWith("/teams")}
-              />
-            </>
-          )}
+            ))}
         </nav>
 
         {/* Account */}
@@ -325,7 +302,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
               {/* Gateway health, at a glance. */}
               <Link
-                href="/"
+                href="/usage"
                 className={cn(
                   "flex items-center justify-between px-2 py-2 text-sm",
                   downCount === 0 ? "text-chart-1" : "text-destructive",
@@ -355,6 +332,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mx-auto w-full max-w-5xl px-4 py-8 md:px-8">{children}</div>
         </main>
       </div>
+
+      <GatewayDialog
+        open={registerOpen}
+        onOpenChange={setRegisterOpen}
+        teams={adminTeams}
+        pending={createGateway.isPending}
+        onSubmit={(values) =>
+          createGateway.mutate(
+            {
+              team_id: values.team_id,
+              name: values.name,
+              region: values.region || undefined,
+              url: values.url,
+              master_key: values.master_key,
+            },
+            {
+              onSuccess: (created) => {
+                setRegisterOpen(false);
+                router.push(`/gateways/${created.id}`);
+              },
+            },
+          )
+        }
+      />
     </div>
   );
 }

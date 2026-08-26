@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { useCombinedUsage, useCombinedUsageTimeseries, useGateways } from "@/lib/hooks";
-import { sinceForWindow, usd, compact } from "@/lib/format";
+import { sinceForWindow } from "@/lib/format";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -58,14 +58,6 @@ export default function UsagePage() {
     gateways.data?.find((gateway) => gateway.id === id)?.name ?? id;
 
   const failed = usage.data?.gateways.filter((gateway) => gateway.error) ?? [];
-  const totals = usage.data?.merged.reduce(
-    (acc, row) => ({
-      cost: acc.cost + row.cost,
-      requests: acc.requests + row.requests,
-      tokens: acc.tokens + row.tokens_total,
-    }),
-    { cost: 0, requests: 0, tokens: 0 },
-  );
 
   return (
     <div className="space-y-6">
@@ -160,37 +152,8 @@ export default function UsagePage() {
 
       {usage.isLoading && <Skeleton className="h-96" />}
 
-      {usage.data && totals && (
+      {usage.data && (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">Cost</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold tabular-nums">{usd(totals.cost)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Requests
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold tabular-nums">{compact(totals.requests)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tokens</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold tabular-nums">{compact(totals.tokens)}</p>
-              </CardContent>
-            </Card>
-          </div>
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base">

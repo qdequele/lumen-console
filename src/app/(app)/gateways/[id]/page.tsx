@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import { useGateways } from "@/lib/hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OverviewPanel } from "./overview-panel";
@@ -21,6 +21,11 @@ export default function GatewayPage({ params, searchParams }: PageProps<"/gatewa
   const gateways = useGateways();
   const gateway = gateways.data?.find((entry) => entry.id === id);
   const canAdmin = gateway !== undefined && gateway.role !== "viewer";
+
+  // Remember the last gateway visited: `/` redirects here next time.
+  useEffect(() => {
+    document.cookie = `lumen-last-gateway=${id}; path=/; max-age=31536000; samesite=lax`;
+  }, [id]);
 
   if (gateways.isLoading) {
     return (

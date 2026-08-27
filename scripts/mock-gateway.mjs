@@ -92,6 +92,77 @@ cost_per_1m_output = 15.0
 `;
 const configHash = () => createHash("sha256").update(configToml).digest("hex");
 
+// Outbound budget webhooks (ADR 011): one receiver per gateway, managed via
+// GET/PUT/DELETE /admin/webhooks and PUT/DELETE /admin/webhooks/signing-key.
+// Seeded as if the operator had a [webhooks] block in the config file, so the
+// console's "the stored row will override the file" warning is exercisable.
+// A PUT flips `source` to "database" — persistently, like the real gateway.
+const WEBHOOK_EVENT_KINDS = [
+  "budget.threshold",
+  "budget.exhausted",
+  "key.disabled",
+  "key.rotated",
+  "key.deleted",
+];
+const webhookState = {
+  enabled: true,
+  source: "config",
+  settings: {
+    url: "https://billing.example.com/lumen/events",
+    signing_key_env: null,
+    events: ["budget.threshold", "budget.exhausted"],
+    thresholds: [50, 80, 95],
+    channel_capacity: 1024,
+    timeout_ms: 5000,
+    max_attempts: 5,
+    retry_base_ms: 500,
+  },
+  signing_key_stored: false,
+  updated_at: now() - 86_400 * 3,
+};
+const webhookDoc = () => ({
+  enabled: webhookState.enabled,
+  source: webhookState.source,
+  ...(webhookState.enabled
+    ? { settings: webhookState.settings, updated_at: webhookState.updated_at }
+    : {}),
+  signed: webhookState.signing_key_stored || Boolean(webhookState.settings?.signing_key_env),
+  signing_key_stored: webhookState.signing_key_stored,
+});
+function validateWebhookSettings(body) {
+  if (typeof body.url !== "string" || !/^https?:\/\/.+/.test(body.url)) {
+    return "`url` must start with http:// or https://";
+  }
+  const events = body.events ?? ["budget.threshold", "budget.exhausted", "key.disabled"];
+  if (!Array.isArray(events) || events.length === 0) {
+    return "`events` must not be empty";
+  }
+  for (const event of events) {
+    if (!WEBHOOK_EVENT_KINDS.includes(event)) return `unknown event kind '${event}'`;
+  }
+  const thresholds = body.thresholds ?? [50, 80, 95];
+  if (events.includes("budget.threshold") && thresholds.length === 0) {
+    return "`thresholds` must not be empty when budget.threshold is enabled";
+  }
+  for (const threshold of thresholds) {
+    if (!Number.isInteger(threshold) || threshold < 1 || threshold > 100) {
+      return "`thresholds` entries must be integers in 1..=100";
+    }
+  }
+  for (const [field, fallback] of [
+    ["channel_capacity", 1024],
+    ["timeout_ms", 5000],
+    ["max_attempts", 5],
+    ["retry_base_ms", 500],
+  ]) {
+    const value = body[field] ?? fallback;
+    if (!Number.isInteger(value) || value <= 0) {
+      return `\`${field}\` must be a positive integer`;
+    }
+  }
+  return null;
+}
+
 const MODELS = ["gpt-4o", "claude-sonnet-5", "text-embedding-3-small", "rerank-v3"];
 const PROVIDERS = ["openai", "anthropic", "cohere"];
 
@@ -206,6 +277,46 @@ createServer(async (req, res) => {
 
   const body = ["POST", "PATCH", "PUT"].includes(req.method) ? await readBody(req) : {};
   const segments = path.split("/").filter(Boolean); // ["admin", ...]
+
+  if (path === "/admin/webhooks") {
+    if (req.method === "GET") return json(res, 200, webhookDoc());
+    if (req.method === "PUT") {
+      const invalid = validateWebhookSettings(body);
+      if (invalid) return lmError(res, 400, invalid);
+      webhookState.settings = {
+        url: body.url,
+        signing_key_env: body.signing_key_env ?? null,
+        events: body.events ?? ["budget.threshold", "budget.exhausted", "key.disabled"],
+        thresholds: body.thresholds ?? [50, 80, 95],
+        channel_capacity: body.channel_capacity ?? 1024,
+        timeout_ms: body.timeout_ms ?? 5000,
+        max_attempts: body.max_attempts ?? 5,
+        retry_base_ms: body.retry_base_ms ?? 500,
+      };
+      webhookState.enabled = true;
+      webhookState.source = "database";
+      webhookState.updated_at = now();
+      return json(res, 200, webhookDoc());
+    }
+    if (req.method === "DELETE") {
+      webhookState.enabled = false;
+      webhookState.source = "database";
+      webhookState.settings = null;
+      return json(res, 204);
+    }
+  }
+
+  if (path === "/admin/webhooks/signing-key") {
+    if (req.method === "PUT") {
+      if (!body.secret?.trim()) return lmError(res, 400, "`secret` must not be empty");
+      webhookState.signing_key_stored = true;
+      return json(res, 204);
+    }
+    if (req.method === "DELETE") {
+      webhookState.signing_key_stored = false;
+      return json(res, 204);
+    }
+  }
 
   if (path === "/admin/usage") {
     const groupBy = url.searchParams.get("group_by") ?? "model";

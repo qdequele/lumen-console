@@ -15,6 +15,7 @@ import type {
   NewProviderBody,
   ProviderPatchBody,
   TeamRole,
+  WebhookSettings,
 } from "@/lib/types";
 
 export function useMe() {
@@ -450,6 +451,69 @@ export function useGrantGroup(gatewayId: string) {
     onSuccess: () => {
       invalidate();
       toast.success("Budget granted");
+    },
+    onError: toastError,
+  });
+}
+
+export function useWebhooks(gatewayId: string) {
+  return useQuery({
+    queryKey: ["webhooks", gatewayId],
+    queryFn: () => api.webhooks(gatewayId),
+    // A 501 means the gateway predates the feature — retrying won't change that.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 501) && failureCount < 3,
+  });
+}
+
+function useInvalidateWebhooks(gatewayId: string) {
+  const client = useQueryClient();
+  return () => void client.invalidateQueries({ queryKey: ["webhooks", gatewayId] });
+}
+
+export function usePutWebhooks(gatewayId: string) {
+  const invalidate = useInvalidateWebhooks(gatewayId);
+  return useMutation({
+    mutationFn: (settings: WebhookSettings) => api.putWebhooks(gatewayId, settings),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Webhook settings applied — the gateway emits with them immediately");
+    },
+    onError: toastError,
+  });
+}
+
+export function useDeleteWebhooks(gatewayId: string) {
+  const invalidate = useInvalidateWebhooks(gatewayId);
+  return useMutation({
+    mutationFn: () => api.deleteWebhooks(gatewayId),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Webhooks disabled — persisted, a gateway reload does not re-enable them");
+    },
+    onError: toastError,
+  });
+}
+
+export function usePutWebhookSigningKey(gatewayId: string) {
+  const invalidate = useInvalidateWebhooks(gatewayId);
+  return useMutation({
+    mutationFn: (secret: string) => api.putWebhookSigningKey(gatewayId, secret),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Signing secret stored — deliveries are HMAC-signed from now on");
+    },
+    onError: toastError,
+  });
+}
+
+export function useDeleteWebhookSigningKey(gatewayId: string) {
+  const invalidate = useInvalidateWebhooks(gatewayId);
+  return useMutation({
+    mutationFn: () => api.deleteWebhookSigningKey(gatewayId),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Signing secret forgotten");
     },
     onError: toastError,
   });

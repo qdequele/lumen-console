@@ -25,6 +25,8 @@ import type {
   UsageReport,
   UsageTimeseries,
   VirtualKeyRecord,
+  WebhookConfigInfo,
+  WebhookSettings,
 } from "@/lib/types";
 
 export class ApiError extends Error {
@@ -220,4 +222,21 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ key }),
     }),
+
+  webhooks: (gatewayId: string) =>
+    request<WebhookConfigInfo>(`/api/gateways/${gatewayId}/webhooks`),
+  putWebhooks: (gatewayId: string, settings: WebhookSettings) =>
+    request<WebhookConfigInfo | undefined>(`/api/gateways/${gatewayId}/webhooks`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
+  deleteWebhooks: (gatewayId: string) =>
+    request<void>(`/api/gateways/${gatewayId}/webhooks`, { method: "DELETE" }),
+  putWebhookSigningKey: (gatewayId: string, secret: string) =>
+    request<void>(`/api/gateways/${gatewayId}/webhooks/signing-key`, {
+      method: "PUT",
+      body: JSON.stringify({ secret }),
+    }),
+  deleteWebhookSigningKey: (gatewayId: string) =>
+    request<void>(`/api/gateways/${gatewayId}/webhooks/signing-key`, { method: "DELETE" }),
 };

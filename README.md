@@ -21,7 +21,10 @@ administer them through each gateway's existing `/admin` API.
   cursor-paginated `GET /admin/usage/export` (ADR 010).
 - **Per-gateway management** — keys (create with one-time plaintext, budgets,
   limits, enable/disable, rotate, grant top-ups, soft-delete), budget groups
-  (ADR 009), provider health and encrypted provider-key rotation.
+  (ADR 009), provider health, encrypted provider-key rotation, and outbound
+  budget webhooks (ADR 011): configure the receiver URL, events, thresholds
+  and delivery knobs, and rotate the write-only HMAC signing secret — the
+  secret is never rendered, logged, or returned to a browser.
 - **Providers & models** — structured CRUD over the gateway's config
   (ADR 010 §5, `GET`/`PUT /admin/config`): add/edit/remove providers and
   their models with console-side validation (globally unique model ids,
@@ -37,6 +40,8 @@ administer them through each gateway's existing `/admin` API.
   | `/config/providers/[name]` | `PATCH`, `DELETE` |
   | `/config/providers/[name]/models` | `POST` |
   | `/config/providers/[name]/models/[modelId]` | `PATCH`, `DELETE` |
+  | `/webhooks` | `GET` (viewer-safe), `PUT`, `DELETE` |
+  | `/webhooks/signing-key` | `PUT`, `DELETE` |
 
   Uses the gateway's `GET`/`PUT /admin/config` (shipped in lumen PR #141):
   `GET` returns `{ config, hash }` (the file verbatim + BLAKE3 hash), `PUT`

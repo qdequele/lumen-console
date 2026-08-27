@@ -19,6 +19,7 @@ import {
   Settings,
   Sun,
   Users,
+  Webhook,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,7 @@ const GATEWAY_NAV = [
   { tab: "keys", label: "API Keys", icon: <KeyRound /> },
   { tab: "groups", label: "Budget Groups", icon: <Layers /> },
   { tab: "providers", label: "Providers", icon: <Cable /> },
+  { tab: "webhooks", label: "Webhooks", icon: <Webhook /> },
   // Settings is admin-only; the shell filters it out for viewers.
   { tab: "settings", label: "Settings", icon: <Settings /> },
 ] as const;

@@ -207,6 +207,47 @@ export interface ProviderPatchBody {
 /** POST .../models and PATCH .../models/[modelId] body. */
 export type ModelBody = ModelConfig;
 
+// ---------------------------------------------------------------------------
+// Outbound budget webhooks (ADR 011): one receiver per gateway, administered
+// through GET/PUT/DELETE /admin/webhooks and PUT/DELETE
+// /admin/webhooks/signing-key. The signing secret is write-only end to end —
+// no route ever returns it, only `signed` / `signing_key_stored`.
+
+export type WebhookEventKind =
+  | "budget.threshold"
+  | "budget.exhausted"
+  | "key.disabled"
+  | "key.rotated"
+  | "key.deleted";
+
+/** The full settings document — PUT /admin/webhooks replaces ALL of it. */
+export interface WebhookSettings {
+  url: string;
+  /** Env var NAME holding the HMAC secret on the gateway host (never the secret). */
+  signing_key_env: string | null;
+  events: WebhookEventKind[];
+  /** Budget percentages (1..=100); only meaningful with `budget.threshold`. */
+  thresholds: number[];
+  channel_capacity: number;
+  timeout_ms: number;
+  max_attempts: number;
+  retry_base_ms: number;
+}
+
+/** Where the live settings came from: the admin API row or the config file. */
+export type WebhookSource = "database" | "config";
+
+/** GET /admin/webhooks response. `settings`/`updated_at` are absent when off. */
+export interface WebhookConfigInfo {
+  enabled: boolean;
+  source: WebhookSource;
+  settings?: WebhookSettings;
+  /** Deliveries are HMAC-signed (a secret is stored or resolvable from env). */
+  signed: boolean;
+  signing_key_stored: boolean;
+  updated_at?: number;
+}
+
 /** One raw usage_log row (GET /admin/usage/export). No prompt content by construction. */
 export interface UsageRow {
   id: number;

@@ -8,9 +8,18 @@ import { UsagePanel } from "./usage-panel";
 import { KeysPanel } from "./keys-panel";
 import { GroupsPanel } from "./groups-panel";
 import { ProvidersPanel } from "./providers-panel";
+import { WebhooksPanel } from "./webhooks-panel";
 import { SettingsPanel } from "./settings-panel";
 
-const PANELS = ["overview", "usage", "keys", "groups", "providers", "settings"] as const;
+const PANELS = [
+  "overview",
+  "usage",
+  "keys",
+  "groups",
+  "providers",
+  "webhooks",
+  "settings",
+] as const;
 type Panel = (typeof PANELS)[number];
 
 export default function GatewayPage({ params, searchParams }: PageProps<"/gateways/[id]">) {
@@ -50,6 +59,7 @@ export default function GatewayPage({ params, searchParams }: PageProps<"/gatewa
       {tab === "keys" && <KeysPanel gatewayId={id} canAdmin={canAdmin} />}
       {tab === "groups" && <GroupsPanel gatewayId={id} canAdmin={canAdmin} />}
       {tab === "providers" && <ProvidersPanel gatewayId={id} canAdmin={canAdmin} />}
+      {tab === "webhooks" && <WebhooksPanel gatewayId={id} canAdmin={canAdmin} />}
       {tab === "settings" && <SettingsPanel gateway={gateway} />}
     </div>
   );

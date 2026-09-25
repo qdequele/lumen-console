@@ -12,11 +12,19 @@ export function OverviewPanel({ gateway }: { gateway: GatewaySnapshot }) {
   const keys = useKeys(gateway.id);
   const groups = useGroups(gateway.id);
   const providers = Object.entries(gateway.providers ?? {});
+  // Lumen lists every configured provider as `unknown` until probed; all of
+  // them unknown means background health checks are off on this gateway.
+  const checksOff =
+    providers.length > 0 && providers.every(([, status]) => status.checked_at === undefined);
 
+  // `null` = no traffic in the window; `undefined` = the usage call failed.
+  const usage = gateway.usage24h;
+  const usageNote =
+    usage === undefined ? "usage unavailable" : usage === null ? "no traffic" : null;
   const stats = [
-    ["Spend, last 24h", gateway.usage24h ? usd(gateway.usage24h.cost) : "—"],
-    ["Requests, last 24h", gateway.usage24h ? compact(gateway.usage24h.requests) : "—"],
-    ["Tokens, last 24h", gateway.usage24h ? compact(gateway.usage24h.tokens_total) : "—"],
+    ["Spend, last 24h", usage === undefined ? "—" : usd(usage?.cost ?? 0)],
+    ["Requests, last 24h", usage === undefined ? "—" : compact(usage?.requests ?? 0)],
+    ["Tokens, last 24h", usage === undefined ? "—" : compact(usage?.tokens_total ?? 0)],
   ] as const;
 
   const links = [
@@ -44,17 +52,21 @@ export function OverviewPanel({ gateway }: { gateway: GatewaySnapshot }) {
           <div key={label} className="px-5 py-4">
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
+            {usageNote && <p className="mt-0.5 text-xs text-muted-foreground">{usageNote}</p>}
           </div>
         ))}
       </div>
 
       <div className="rounded-lg border">
-        <div className="border-b px-5 py-3">
+        <div className="flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-sm font-medium">Providers</h2>
+          {checksOff && <span className="text-xs text-muted-foreground">health checks off</span>}
         </div>
         {providers.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-            No providers probed — health checks may be disabled on this gateway.
+            {gateway.providers === undefined
+              ? "Provider health unavailable."
+              : "No providers configured on this gateway."}
           </p>
         ) : (
           <ul className="divide-y">
@@ -71,7 +83,11 @@ export function OverviewPanel({ gateway }: { gateway: GatewaySnapshot }) {
                 <span className="font-medium">{name}</span>
                 <span className="ml-auto text-xs text-muted-foreground">
                   {status.latency_ms !== undefined && `${status.latency_ms} ms · `}
-                  {status.checked_at !== undefined ? timeAgo(status.checked_at) : "never probed"}
+                  {status.checked_at !== undefined
+                    ? timeAgo(status.checked_at)
+                    : checksOff
+                      ? "configured"
+                      : "not probed"}
                 </span>
               </li>
             ))}

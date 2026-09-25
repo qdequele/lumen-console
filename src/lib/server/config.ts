@@ -2,15 +2,17 @@ import "server-only";
 import { parse, stringify } from "smol-toml";
 import type { GatewayConnection } from "@/lib/server/gateways";
 import { lumenFetch, LumenError } from "@/lib/server/lumen";
-import type { ModelConfig, ProviderConfig } from "@/lib/types";
+import type { KeySource, ModelConfig, ProviderConfig } from "@/lib/types";
 
 /**
  * Gateway config access, per ADR 010 §5 as shipped in lumen PR #141
  * (crates/server/src/admin.rs):
  *
- *   GET /admin/config  → JSON `{ config: "<toml>", hash: "<blake3 hex>" }`;
- *                        the file's bytes verbatim, never the merged
- *                        in-memory config (env overrides stay env-only).
+ *   GET /admin/config  → JSON `{ config: "<toml>", hash: "<blake3 hex>",
+ *                        key_sources: { <provider>: KeySource } }`; the
+ *                        file's bytes verbatim, never the merged in-memory
+ *                        config (env overrides stay env-only). `key_sources`
+ *                        is newer and absent on older gateways.
  *   PUT /admin/config  → TOML body + `If-Match: "<hash>"`; the gateway
  *                        stages the bytes, validates (parse + registry
  *                        build) BEFORE writing, backs up the old file,
@@ -33,6 +35,7 @@ export interface GatewayConfigDocument {
   providers: ProviderConfig[];
   hash: string;
   toml: string;
+  keySources?: Record<string, KeySource>;
 }
 
 interface RawModel {
@@ -90,6 +93,7 @@ function parseProvider(raw: RawProvider): ProviderConfig {
 interface ConfigDocumentWire {
   config: string;
   hash: string;
+  key_sources?: Record<string, KeySource>;
 }
 
 export async function fetchConfig(conn: GatewayConnection): Promise<GatewayConfigDocument> {
@@ -115,7 +119,13 @@ export async function fetchConfig(conn: GatewayConnection): Promise<GatewayConfi
   const providers = Array.isArray(root.providers)
     ? (root.providers as RawProvider[]).map(parseProvider)
     : [];
-  return { root, providers, hash: wire.hash, toml: wire.config };
+  return {
+    root,
+    providers,
+    hash: wire.hash,
+    toml: wire.config,
+    keySources: wire.key_sources,
+  };
 }
 
 export async function writeConfig(

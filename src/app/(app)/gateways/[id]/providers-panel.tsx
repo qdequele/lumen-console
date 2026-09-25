@@ -21,7 +21,7 @@ import {
   useUpdateProvider,
 } from "@/lib/hooks";
 import { usd } from "@/lib/format";
-import type { ModelConfig, ProviderConfig, ProviderStatus } from "@/lib/types";
+import type { KeySource, ModelConfig, ProviderConfig, ProviderStatus } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,10 +55,23 @@ import { cn } from "@/lib/utils";
 import { ProviderDialog } from "./provider-dialog";
 import { ModelDialog } from "./model-dialog";
 
+/**
+ * Health-probe state only — it says nothing about the provider's API key.
+ * Lumen reports `unknown` until a probe runs, which never happens with health
+ * checks off or for providers on a built-in vendor URL, so label it that way.
+ */
 function HealthDot({ status }: { status?: ProviderStatus }) {
   const state = status?.status ?? "unknown";
+  const label = state === "unknown" && status?.checked_at === undefined ? "not probed" : state;
   return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span
+      className="flex items-center gap-1.5 text-xs text-muted-foreground"
+      title={
+        label === "not probed"
+          ? "No health probe has run: health checks are off, or this provider uses a built-in vendor URL. This is not an API key check."
+          : undefined
+      }
+    >
       <span
         className={cn(
           "size-2 rounded-full",
@@ -67,10 +80,56 @@ function HealthDot({ status }: { status?: ProviderStatus }) {
           state === "unknown" && "bg-muted-foreground/40",
         )}
       />
-      {state}
+      {label}
       {status?.latency_ms !== undefined && ` · ${status.latency_ms} ms`}
     </span>
   );
+}
+
+const KEY_LABEL: Record<KeySource, string> = {
+  env: "key from env",
+  stored: "key stored",
+  missing: "no API key",
+  not_required: "keyless",
+};
+
+/** Where the gateway actually resolves this provider's API key from. */
+function KeyBadge({ source, envVar }: { source: KeySource; envVar?: string }) {
+  const title =
+    source === "env"
+      ? `Read from ${envVar} on the gateway host. It takes precedence over a key set here.`
+      : source === "stored"
+        ? "Set from the console, stored encrypted on the gateway."
+        : source === "missing"
+          ? `No key: ${envVar ? `${envVar} is unset and ` : ""}none was set here. Requests to this provider will fail.`
+          : "This provider kind does not need an API key.";
+  return (
+    <Badge
+      variant={source === "missing" ? "destructive" : "outline"}
+      className="font-normal"
+      title={title}
+    >
+      <KeyRound className="size-3" />
+      {KEY_LABEL[source]}
+    </Badge>
+  );
+}
+
+/**
+ * Env var name and base URL under the provider name. The env var only matters
+ * when it is the key's actual source; gateways without `key_sources` keep the
+ * old behaviour of always showing it.
+ */
+function ProviderSubline({ provider, source }: { provider: ProviderConfig; source?: KeySource }) {
+  const envVar =
+    source === undefined
+      ? (provider.api_key_env ?? "key stored on gateway")
+      : source === "env"
+        ? provider.api_key_env
+        : undefined;
+  const line = [envVar, provider.base_url].filter(Boolean).join(" · ");
+  if (!line) return null;
+  return <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{line}</p>;
 }
 
 export function ProvidersPanel({
@@ -146,12 +205,18 @@ export function ProvidersPanel({
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-medium">{provider.name}</h2>
                 <Badge variant="secondary">{provider.kind}</Badge>
+                {config.data?.key_sources?.[provider.name] && (
+                  <KeyBadge
+                    source={config.data.key_sources[provider.name]}
+                    envVar={provider.api_key_env}
+                  />
+                )}
                 <HealthDot status={health.data?.[provider.name]} />
               </div>
-              <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
-                {provider.api_key_env ?? "key stored on gateway"}
-                {provider.base_url && ` · ${provider.base_url}`}
-              </p>
+              <ProviderSubline
+                provider={provider}
+                source={config.data?.key_sources?.[provider.name]}
+              />
             </div>
             {canAdmin && (
               <div className="ml-auto flex items-center gap-2">

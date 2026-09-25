@@ -134,7 +134,10 @@ export interface GatewaySnapshot extends GatewayPublic {
   reachable: GatewayReachability;
   /** Populated when reachable; absent otherwise. */
   providers?: ProviderHealthMap;
-  /** Last-24h totals from GET /admin/usage?group_by=total. */
+  /**
+   * Last-24h totals from GET /admin/usage?group_by=total. `null` means the
+   * call succeeded with no traffic; absent means it failed (or no master key).
+   */
   usage24h?: UsageAggregate | null;
   /** Human-readable failure detail when the gateway is unreachable. */
   error?: string;
@@ -182,11 +185,20 @@ export interface ProviderConfig {
   models: ModelConfig[];
 }
 
+/**
+ * Where a provider's API key resolves from on the gateway: its `api_key_env`
+ * variable (which wins), a key stored via "Set API key", nowhere, or not
+ * needed (keyless kinds such as Ollama).
+ */
+export type KeySource = "env" | "stored" | "missing" | "not_required";
+
 /** GET /api/gateways/[id]/config response. */
 export interface GatewayConfigInfo {
   /** Content hash of the config the providers were read from. */
   hash: string;
   providers: ProviderConfig[];
+  /** Provider name → key source. Absent on gateways older than this field. */
+  key_sources?: Record<string, KeySource>;
 }
 
 /** POST .../config/providers body. */

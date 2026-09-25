@@ -13,7 +13,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const result = await connectGateway(id, { admin: false });
     if (!result) return notFound(`gateway "${id}"`);
     const document = await fetchConfig(result.conn);
-    const info: GatewayConfigInfo = { hash: document.hash, providers: document.providers };
+    const info: GatewayConfigInfo = {
+      hash: document.hash,
+      providers: document.providers,
+      key_sources: document.keySources,
+    };
     return NextResponse.json(info);
   } catch (error) {
     return toErrorResponse(error);

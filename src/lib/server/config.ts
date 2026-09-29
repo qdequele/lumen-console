@@ -160,7 +160,7 @@ export async function writeConfig(
 // authoritatively on PUT; these checks exist to answer with a precise 400
 // instead of a generic rejection.
 
-export const CAPABILITIES = ["chat", "embed", "rerank"] as const;
+export const CAPABILITIES = ["chat", "embed", "rerank", "systemone"] as const;
 export const MODALITIES = ["text", "image"] as const;
 
 export function validateModel(model: ModelConfig, allModelIds: Set<string>): string | null {
@@ -168,7 +168,7 @@ export function validateModel(model: ModelConfig, allModelIds: Set<string>): str
   if (model.capabilities.length === 0) return "`capabilities` must not be empty";
   for (const capability of model.capabilities) {
     if (!(CAPABILITIES as readonly string[]).includes(capability)) {
-      return `invalid capability "${capability}": expected chat, embed or rerank`;
+      return `invalid capability "${capability}": expected chat, embed, rerank or systemone`;
     }
   }
   for (const modality of model.modalities ?? []) {

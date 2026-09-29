@@ -209,7 +209,7 @@ function usageGroups(groupBy) {
     model: MODELS,
     model_used: MODELS,
     provider: PROVIDERS,
-    capability: ["chat", "embed", "rerank"],
+    capability: ["chat", "embed", "rerank", "systemone"],
     key_id: [...keys.keys()],
     group_id: [...groups.keys()],
     status: ["200", "400", "429", "502"],

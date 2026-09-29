@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
-const CAPABILITIES = ["chat", "embed", "rerank"] as const;
+const CAPABILITIES = ["chat", "embed", "rerank", "systemone"] as const;
 
 function TogglePill({
   label,
@@ -137,7 +137,7 @@ export function ModelDialog({
 
           <div className="space-y-2">
             <Label>Capabilities</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {CAPABILITIES.map((capability) => (
                 <TogglePill
                   key={capability}

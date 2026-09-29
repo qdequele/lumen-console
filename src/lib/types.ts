@@ -172,6 +172,11 @@ export interface ModelConfig {
   cost_per_1m_output?: number;
   /** Model ids tried in order when this provider fails. */
   fallbacks?: string[];
+  /**
+   * ISO date the model was released (`YYYY-MM-DD`, lumen >= 0.6.1).
+   * Metadata only: model lists sort on it.
+   */
+  release_date?: string;
 }
 
 export interface ProviderConfig {
@@ -216,8 +221,17 @@ export interface ProviderPatchBody {
   base_url?: string | null;
 }
 
-/** POST .../models and PATCH .../models/[modelId] body. */
-export type ModelBody = ModelConfig;
+/**
+ * POST .../models and PATCH .../models/[modelId] body. On PATCH a missing key
+ * keeps the current value, and each optional field has an explicit "clear":
+ * `""` for `upstream_id` / `release_date`, `null` for prices, `[]` for
+ * `modalities` / `fallbacks` (JSON drops `undefined`, so it cannot clear).
+ */
+export interface ModelBody
+  extends Omit<ModelConfig, "cost_per_1m_input" | "cost_per_1m_output"> {
+  cost_per_1m_input?: number | null;
+  cost_per_1m_output?: number | null;
+}
 
 // ---------------------------------------------------------------------------
 // Outbound budget webhooks (ADR 011): one receiver per gateway, administered

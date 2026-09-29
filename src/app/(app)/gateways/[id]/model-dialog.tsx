@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import type { ModelConfig } from "@/lib/types";
+import { isValidReleaseDate } from "@/lib/models";
+import type { ModelBody, ModelConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,7 +54,7 @@ interface ModelDialogProps {
   /** Every other model id on the gateway — candidates for fallbacks. */
   otherModelIds: string[];
   pending: boolean;
-  onSubmit: (model: ModelConfig) => void;
+  onSubmit: (model: ModelBody) => void;
 }
 
 export function ModelDialog({
@@ -72,6 +73,7 @@ export function ModelDialog({
   const [costIn, setCostIn] = useState("");
   const [costOut, setCostOut] = useState("");
   const [fallbacks, setFallbacks] = useState<string[]>([]);
+  const [releaseDate, setReleaseDate] = useState("");
 
   // Re-seed on open transition, during render (no effect needed).
   const [wasOpen, setWasOpen] = useState(false);
@@ -85,6 +87,7 @@ export function ModelDialog({
       setCostIn(existing?.cost_per_1m_input?.toString() ?? "");
       setCostOut(existing?.cost_per_1m_output?.toString() ?? "");
       setFallbacks(existing?.fallbacks ?? []);
+      setReleaseDate(existing?.release_date ?? "");
     }
   }
 
@@ -97,7 +100,8 @@ export function ModelDialog({
     id.trim() !== "" &&
     capabilities.length > 0 &&
     priceValid(costIn) &&
-    priceValid(costOut);
+    priceValid(costOut) &&
+    (releaseDate === "" || isValidReleaseDate(releaseDate));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,12 +153,28 @@ export function ModelDialog({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Switch id="model-image" checked={image} onCheckedChange={setImage} />
-            <Label htmlFor="model-image" className="text-sm text-muted-foreground">
-              Accepts image input (vision)
-            </Label>
+          <div className="grid grid-cols-2 items-end gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="model-release">Release date (optional)</Label>
+              <Input
+                id="model-release"
+                type="date"
+                min="1970-01-01"
+                value={releaseDate}
+                onChange={(event) => setReleaseDate(event.target.value)}
+              />
+            </div>
+            <div className="flex h-9 items-center gap-2">
+              <Switch id="model-image" checked={image} onCheckedChange={setImage} />
+              <Label htmlFor="model-image" className="text-sm text-muted-foreground">
+                Accepts image input (vision)
+              </Label>
+            </div>
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Model lists show the newest first and fold ones released over a year ago. Needs
+            lumen 0.6.1 or later; never used for routing.
+          </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -202,14 +222,17 @@ export function ModelDialog({
           <Button
             disabled={!valid || pending}
             onClick={() =>
+              // Every field is sent, with ModelBody's clear markers for empty
+              // ones (undefined would be dropped by JSON and keep the old value).
               onSubmit({
                 id: id.trim(),
-                upstream_id: upstreamId.trim() || undefined,
+                upstream_id: upstreamId.trim(),
                 capabilities,
-                modalities: image ? ["text", "image"] : undefined,
-                cost_per_1m_input: costIn.trim() === "" ? undefined : Number(costIn),
-                cost_per_1m_output: costOut.trim() === "" ? undefined : Number(costOut),
-                fallbacks: fallbacks.length > 0 ? fallbacks : undefined,
+                modalities: image ? ["text", "image"] : [],
+                cost_per_1m_input: costIn.trim() === "" ? null : Number(costIn),
+                cost_per_1m_output: costOut.trim() === "" ? null : Number(costOut),
+                fallbacks,
+                release_date: releaseDate,
               })
             }
           >

@@ -32,6 +32,9 @@ administer them through each gateway's existing `/admin` API.
   fallbacks, deletes of a fallback target are refused). Every write is
   optimistic-concurrency-guarded by the config content hash (`If-Match`),
   so concurrent edits fail with 409 instead of losing changes.
+  Models can carry a `release_date` (lumen 0.6.1+): every model list shows
+  the newest first, and one with more than three models folds those
+  released over a year ago behind a "Show older models" toggle.
 - **Playground** — send real requests to each `/v1` endpoint of a gateway
   (chat with streaming and Stop, embeddings, rerank, SystemOne, the models
   list) with the models it is configured with, and inspect status, LM error

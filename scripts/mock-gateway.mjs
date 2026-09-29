@@ -79,6 +79,7 @@ api_key_env = "OPENAI_API_KEY"
 id = "gpt-4o"
 upstream_id = "gpt-4o-2024-08-06"
 capabilities = [ "chat" ]
+release_date = "2024-08-06"
 cost_per_1m_input = 2.5
 cost_per_1m_output = 10.0
 fallbacks = [ "claude-sonnet-5" ]
@@ -86,6 +87,7 @@ fallbacks = [ "claude-sonnet-5" ]
 [[providers.models]]
 id = "gpt-4o-mini"
 capabilities = [ "chat" ]
+release_date = "2024-07-18"
 cost_per_1m_input = 0.15
 cost_per_1m_output = 0.6
 fallbacks = [ "claude-sonnet-5" ]
@@ -97,6 +99,13 @@ capabilities = [ "chat" ]
 [[providers.models]]
 id = "text-embedding-3-small"
 capabilities = [ "embed" ]
+release_date = "2024-01-25"
+
+# A bare TOML date: lumen accepts it as well as the quoted form.
+[[providers.models]]
+id = "gpt-5-mini"
+capabilities = [ "chat" ]
+release_date = 2026-08-07
 
 [[providers]]
 name = "anthropic"
@@ -107,6 +116,7 @@ api_key_env = "ANTHROPIC_API_KEY"
 id = "claude-sonnet-5"
 upstream_id = "claude-sonnet-5-latest"
 capabilities = [ "chat" ]
+release_date = "2026-05-20"
 cost_per_1m_input = 3.0
 cost_per_1m_output = 15.0
 
@@ -271,7 +281,7 @@ const readBody = (req) =>
 const v1Error = (res, status, code, message, type = "invalid_request") =>
   json(res, status, { error: { code, message, type } });
 
-/** Models parsed from the stored TOML: [{ id, capabilities, fallbacks, provider }]. */
+/** Models parsed from the stored TOML: [{ id, capabilities, fallbacks, release_date, provider }]. */
 function configuredModels() {
   const models = [];
   let provider = null;
@@ -283,7 +293,8 @@ function configuredModels() {
       )].map((match) => match[1]);
     if (block.startsWith("providers]]")) provider = field("name");
     if (block.startsWith("providers.models]]")) {
-      models.push({ id: field("id"), capabilities: list("capabilities"), fallbacks: list("fallbacks"), provider });
+      const release_date = block.match(/^release_date\s*=\s*"?(\d{4}-\d{2}-\d{2})"?/m)?.[1];
+      models.push({ id: field("id"), capabilities: list("capabilities"), fallbacks: list("fallbacks"), release_date, provider });
     }
   }
   return models;
@@ -563,6 +574,11 @@ async function handleV1(req, res, path) {
         owned_by: model.provider,
         capabilities: model.capabilities,
         modalities: ["text"],
+        // lumen >= 0.6.1: both present for a dated model, both absent otherwise.
+        ...(model.release_date && {
+          release_date: model.release_date,
+          created: Date.parse(`${model.release_date}T00:00:00Z`) / 1000,
+        }),
       })),
     });
   }

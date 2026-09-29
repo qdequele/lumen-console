@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useGatewayConfig } from "@/lib/hooks";
+import { sortByRelease } from "@/lib/models";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -24,7 +25,10 @@ const CAPABILITY_LABEL: Record<Capability, string> = {
   systemone: "SystemOne",
 };
 
-/** Models of the gateway's config that have `capability`, grouped by provider. */
+/**
+ * Models of the gateway's config that have `capability`, grouped by provider,
+ * newest first (so the default is the most recent model).
+ */
 export function ModelSelect({
   gatewayId,
   capability,
@@ -42,7 +46,9 @@ export function ModelSelect({
   const groups = (config.data?.providers ?? [])
     .map((provider) => ({
       provider: provider.name,
-      models: provider.models.filter((model) => model.capabilities.includes(capability)),
+      models: sortByRelease(
+        provider.models.filter((model) => model.capabilities.includes(capability)),
+      ),
     }))
     .filter((group) => group.models.length > 0);
   const ids = groups.flatMap((group) => group.models.map((model) => model.id));

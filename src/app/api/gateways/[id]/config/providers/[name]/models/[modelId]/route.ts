@@ -3,12 +3,13 @@ import { connectGateway } from "@/lib/server/gateways";
 import {
   allModelIds,
   fetchConfig,
+  mergeModel,
   toRawProvider,
   validateModel,
   writeConfig,
 } from "@/lib/server/config";
 import { notFound, toErrorResponse } from "@/lib/server/respond";
-import type { ModelBody, ModelConfig } from "@/lib/types";
+import type { ModelBody } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string; name: string; modelId: string }> };
 
@@ -31,22 +32,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (index === -1) return notFound(`model "${modelId}" on provider "${name}"`);
     const current = provider.models[index];
 
-    const updated: ModelConfig = {
-      id: body.id?.trim() || current.id,
-      upstream_id:
-        body.upstream_id !== undefined
-          ? body.upstream_id.trim() || undefined
-          : current.upstream_id,
-      capabilities: body.capabilities ?? current.capabilities,
-      modalities: body.modalities ?? current.modalities,
-      cost_per_1m_input:
-        body.cost_per_1m_input !== undefined ? body.cost_per_1m_input : current.cost_per_1m_input,
-      cost_per_1m_output:
-        body.cost_per_1m_output !== undefined
-          ? body.cost_per_1m_output
-          : current.cost_per_1m_output,
-      fallbacks: body.fallbacks ?? current.fallbacks,
-    };
+    const updated = mergeModel(current, body);
 
     const otherIds = allModelIds(document.providers);
     otherIds.delete(modelId);

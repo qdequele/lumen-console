@@ -1,8 +1,9 @@
 import "server-only";
-import { parse, stringify } from "smol-toml";
+import { parse, stringify, TomlDate } from "smol-toml";
+import { isValidReleaseDate } from "@/lib/models";
 import type { GatewayConnection } from "@/lib/server/gateways";
 import { lumenFetch, LumenError } from "@/lib/server/lumen";
-import type { KeySource, ModelConfig, ProviderConfig } from "@/lib/types";
+import type { KeySource, ModelBody, ModelConfig, ProviderConfig } from "@/lib/types";
 
 /**
  * Gateway config access, per ADR 010 §5 as shipped in lumen PR #141
@@ -46,6 +47,7 @@ interface RawModel {
   cost_per_1m_input?: unknown;
   cost_per_1m_output?: unknown;
   fallbacks?: unknown;
+  release_date?: unknown;
   [key: string]: unknown;
 }
 
@@ -63,6 +65,13 @@ function asStringArray(value: unknown): string[] | undefined {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
+/** A quoted `"2024-08-06"` or a bare TOML date `2024-08-06`: lumen takes both. */
+function asReleaseDate(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (value instanceof TomlDate && value.isDate()) return value.toISOString();
+  return undefined;
+}
+
 function parseModel(raw: RawModel): ModelConfig {
   return {
     id: typeof raw.id === "string" ? raw.id : "",
@@ -74,6 +83,7 @@ function parseModel(raw: RawModel): ModelConfig {
     cost_per_1m_output:
       typeof raw.cost_per_1m_output === "number" ? raw.cost_per_1m_output : undefined,
     fallbacks: asStringArray(raw.fallbacks),
+    release_date: asReleaseDate(raw.release_date),
   };
 }
 
@@ -181,6 +191,9 @@ export function validateModel(model: ModelConfig, allModelIds: Set<string>): str
       return "prices must be non-negative finite numbers";
     }
   }
+  if (model.release_date && !isValidReleaseDate(model.release_date)) {
+    return `invalid release date "${model.release_date}": expected a real date YYYY-MM-DD from 1970-01-01`;
+  }
   for (const fallback of model.fallbacks ?? []) {
     if (fallback === model.id) return "a model cannot fall back to itself";
     if (!allModelIds.has(fallback)) {
@@ -188,6 +201,52 @@ export function validateModel(model: ModelConfig, allModelIds: Set<string>): str
     }
   }
   return null;
+}
+
+/** `""` (or whitespace) means unset. */
+function trimmedOrUndefined(value: string | undefined): string | undefined {
+  return value?.trim() || undefined;
+}
+
+/** `[]` means unset, like an absent key in the TOML. */
+function nonEmpty(list: string[] | undefined): string[] | undefined {
+  return list && list.length > 0 ? list : undefined;
+}
+
+/** A POST body as a new model: cleared values become absent. */
+export function modelFromBody(body: ModelBody): ModelConfig {
+  return {
+    id: body.id?.trim() ?? "",
+    upstream_id: trimmedOrUndefined(body.upstream_id),
+    capabilities: body.capabilities ?? [],
+    modalities: nonEmpty(body.modalities),
+    cost_per_1m_input: body.cost_per_1m_input ?? undefined,
+    cost_per_1m_output: body.cost_per_1m_output ?? undefined,
+    fallbacks: nonEmpty(body.fallbacks),
+    release_date: trimmedOrUndefined(body.release_date),
+  };
+}
+
+/**
+ * A PATCH body applied to `current`: a missing key keeps the value, the
+ * clear markers of {@link ModelBody} remove it.
+ */
+export function mergeModel(current: ModelConfig, body: Partial<ModelBody>): ModelConfig {
+  const pick = <T>(value: T | undefined, fallback: T): T => (value === undefined ? fallback : value);
+  return {
+    id: body.id?.trim() || current.id,
+    upstream_id:
+      body.upstream_id === undefined ? current.upstream_id : trimmedOrUndefined(body.upstream_id),
+    capabilities: body.capabilities ?? current.capabilities,
+    modalities: body.modalities === undefined ? current.modalities : nonEmpty(body.modalities),
+    cost_per_1m_input: pick(body.cost_per_1m_input, current.cost_per_1m_input) ?? undefined,
+    cost_per_1m_output: pick(body.cost_per_1m_output, current.cost_per_1m_output) ?? undefined,
+    fallbacks: body.fallbacks === undefined ? current.fallbacks : nonEmpty(body.fallbacks),
+    release_date:
+      body.release_date === undefined
+        ? current.release_date
+        : trimmedOrUndefined(body.release_date),
+  };
 }
 
 /** A model as stored back into the TOML document: no undefined values. */
@@ -201,6 +260,7 @@ export function toRawModel(model: ModelConfig): Record<string, unknown> {
   if (model.cost_per_1m_input !== undefined) raw.cost_per_1m_input = model.cost_per_1m_input;
   if (model.cost_per_1m_output !== undefined) raw.cost_per_1m_output = model.cost_per_1m_output;
   if (model.fallbacks && model.fallbacks.length > 0) raw.fallbacks = model.fallbacks;
+  if (model.release_date) raw.release_date = model.release_date;
   return raw;
 }
 

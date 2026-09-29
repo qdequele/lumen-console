@@ -12,12 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { OlderModelsToggle, ReleaseDate, useOlderModels } from "../older-models";
 import { useRunner } from "./client";
 import { okBody } from "./shared";
 import { playgroundState, usePlaygroundForm } from "./store";
 
 interface ModelsResponse {
-  data?: { id: string; owned_by?: string; capabilities?: string[] }[];
+  data?: { id: string; owned_by?: string; capabilities?: string[]; release_date?: string }[];
 }
 
 /** GET /v1/models: what the playground key actually sees. */
@@ -25,6 +26,7 @@ export function ModelsView({ gatewayId }: { gatewayId: string }) {
   const [state] = usePlaygroundForm(gatewayId, "models");
   const run = useRunner(gatewayId, "models", "models");
   const models = okBody<ModelsResponse>(state.result)?.data;
+  const { rows, olderCount, showOlder, toggleOlder } = useOlderModels(models ?? []);
 
   // Fetch once on first visit; afterwards only on Refresh.
   useEffect(() => {
@@ -51,17 +53,18 @@ export function ModelsView({ gatewayId }: { gatewayId: string }) {
                 <TableHead>Model</TableHead>
                 <TableHead>Owned by</TableHead>
                 <TableHead>Capabilities</TableHead>
+                <TableHead>Released</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {models.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                     The gateway lists no models.
                   </TableCell>
                 </TableRow>
               )}
-              {models.map((model) => (
+              {rows.map((model) => (
                 <TableRow key={model.id}>
                   <TableCell className="font-mono text-xs">{model.id}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{model.owned_by ?? "—"}</TableCell>
@@ -74,10 +77,14 @@ export function ModelsView({ gatewayId }: { gatewayId: string }) {
                       ))}
                     </div>
                   </TableCell>
+                  <TableCell className="text-sm">
+                    <ReleaseDate date={model.release_date} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          <OlderModelsToggle count={olderCount} shown={showOlder} onToggle={toggleOlder} />
         </div>
       )}
     </div>

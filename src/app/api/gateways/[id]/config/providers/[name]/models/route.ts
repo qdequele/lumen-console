@@ -3,12 +3,13 @@ import { connectGateway } from "@/lib/server/gateways";
 import {
   allModelIds,
   fetchConfig,
+  modelFromBody,
   toRawProvider,
   validateModel,
   writeConfig,
 } from "@/lib/server/config";
 import { notFound, toErrorResponse } from "@/lib/server/respond";
-import type { ModelBody, ModelConfig } from "@/lib/types";
+import type { ModelBody } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string; name: string }> };
 
@@ -24,15 +25,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const provider = document.providers.find((entry) => entry.name === name);
     if (!provider) return notFound(`provider "${name}"`);
 
-    const model: ModelConfig = {
-      id: body.id?.trim() ?? "",
-      upstream_id: body.upstream_id?.trim() || undefined,
-      capabilities: body.capabilities ?? [],
-      modalities: body.modalities,
-      cost_per_1m_input: body.cost_per_1m_input,
-      cost_per_1m_output: body.cost_per_1m_output,
-      fallbacks: body.fallbacks,
-    };
+    const model = modelFromBody(body);
     const existingIds = allModelIds(document.providers);
     if (existingIds.has(model.id)) {
       return NextResponse.json(

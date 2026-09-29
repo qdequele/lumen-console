@@ -35,8 +35,11 @@ administer them through each gateway's existing `/admin` API.
 - **Playground** — send real requests to each `/v1` endpoint of a gateway
   (chat with streaming and Stop, embeddings, rerank, SystemOne, the models
   list) with the models it is configured with, and inspect status, LM error
-  code, latency, the model that actually served the call (fallbacks are
-  badged), token counts, and an equivalent `curl`. Open to every role.
+  code, latency (split into time to first token and generation, with
+  tokens/sec for streams), the model that actually served the call
+  (fallbacks are badged), token counts, the request and response as a
+  collapsible JSON tree, and an equivalent `curl`. Chat replies render as
+  Markdown (toggle for raw). Open to every role.
   Calls go through the console with a console-owned **playground virtual
   key** (`lumen-console-playground`), minted on first use without limits and
   stored sealed in `playground_keys`; its plaintext never reaches a browser.
@@ -115,7 +118,8 @@ node scripts/mock-gateway.mjs 15091 mock-master-eu eu-west
 Register `http://127.0.0.1:15091` with master key `mock-master-eu` in the UI.
 For the Playground, the mock has scripted cases: `gpt-4o-mini` is always
 served by its fallback, `budget-capped` answers `402 LM-4001`, a chat message
-containing `/error` fails mid-stream, and streams send one token every
+containing `/error` fails mid-stream, one containing `/markdown` gets a
+Markdown-rich reply, and streams send one token every
 200 ms and log `client aborted` when Stop disconnects them.
 
 ## Production

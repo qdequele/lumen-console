@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { streamChat, useInvalidateUsage, usePlaygroundCall } from "./client";
+import { Markdown } from "./markdown";
 import { ModelSelect } from "./model-select";
 import { buildChatRequest } from "./requests";
 import { playgroundState, usePlaygroundForm, type ChatTurn } from "./store";
@@ -153,14 +154,27 @@ export function ChatForm({ gatewayId }: { gatewayId: string }) {
       <div className="rounded-lg border">
         <div className="flex items-center justify-between border-b px-3 py-2">
           <p className="text-sm font-medium">Conversation</p>
-          <Button
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id="chat-markdown"
+                size="sm"
+                checked={chat.markdown}
+                onCheckedChange={(markdown) => patch({ markdown })}
+              />
+              <Label htmlFor="chat-markdown" className="text-xs text-muted-foreground">
+                Markdown
+              </Label>
+            </div>
+            <Button
             variant="ghost"
             size="xs"
             disabled={chat.running || chat.turns.length === 0}
             onClick={() => patch({ turns: [], result: null })}
           >
             <Eraser /> Clear
-          </Button>
+            </Button>
+          </div>
         </div>
         {chat.turns.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -180,12 +194,16 @@ export function ChatForm({ gatewayId }: { gatewayId: string }) {
                   >
                     {turn.role}
                   </span>
-                  <p className="min-w-0 flex-1 text-sm whitespace-pre-wrap break-words">
-                    {turn.content}
-                    {streaming && (
-                      <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-foreground/60 align-text-bottom" />
+                  <div className="min-w-0 flex-1">
+                    {turn.role === "assistant" && chat.markdown ? (
+                      <Markdown text={turn.content} />
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap break-words">{turn.content}</p>
                     )}
-                  </p>
+                    {streaming && (
+                      <span className="mt-1 inline-block h-4 w-1.5 animate-pulse bg-foreground/60 align-text-bottom" />
+                    )}
+                  </div>
                   <Button
                     variant="ghost"
                     size="icon-xs"

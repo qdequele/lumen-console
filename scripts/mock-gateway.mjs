@@ -264,6 +264,7 @@ const readBody = (req) =>
 //   * `gpt-4o-mini` is always served by its fallback (x-lumen-model-used).
 //   * `budget-capped` answers 402 LM-4001, as an exhausted key would.
 //   * a chat message containing "/error" fails mid-stream with LM-3010.
+//   * a chat message containing "/markdown" gets a Markdown-rich reply.
 //   * streams emit one token every 200 ms and log `client aborted` on a
 //     disconnect before [DONE].
 
@@ -317,6 +318,29 @@ function unit(text) {
 function chatReply(model, messages) {
   const last = [...messages].reverse().find((message) => message.role === "user");
   const said = typeof last?.content === "string" ? last.content : JSON.stringify(last?.content ?? "");
+  if (said.includes("/markdown")) {
+    return [
+      `## Rotating a key on ${servedBy(model)}`,
+      "",
+      "Rotation issues a **new plaintext** and invalidates the old one *immediately*:",
+      "",
+      "1. Open **API Keys**",
+      "2. Pick the key, then `Rotate`",
+      "3. Update your clients",
+      "",
+      "```bash",
+      "curl -X POST $LUMEN_URL/admin/keys/$KEY_ID/rotate \\",
+      '  -H "Authorization: Bearer $LUMEN_MASTER_KEY"',
+      "```",
+      "",
+      "| Field | Kept |",
+      "|---|---|",
+      "| budget | yes |",
+      "| plaintext | no |",
+      "",
+      "> The old key stops working on the next request.",
+    ].join("\n");
+  }
   return `Mock reply from ${servedBy(model)} on "${name}". You said: "${said.slice(0, 200)}". ` +
     `This conversation has ${messages.length} message(s).`;
 }

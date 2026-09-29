@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { JsonTree } from "./json-tree";
 import {
   curlCommand,
   isFallback,
@@ -15,6 +16,7 @@ import {
   type PlaygroundEndpoint,
   type PlaygroundResult,
 } from "./result";
+import { streamTiming, tokenSplit } from "./visual";
 
 export async function copyText(text: string, what = "Copied") {
   try {
@@ -53,7 +55,16 @@ function StatusBadge({ status }: { status: number | null }) {
   );
 }
 
-function CodeBlock({ text, copyLabel }: { text: string; copyLabel: string }) {
+function CodeBlock({
+  text,
+  copyLabel,
+  children,
+}: {
+  /** What Copy puts on the clipboard; also rendered unless `children` is given. */
+  text: string;
+  copyLabel: string;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="relative">
       <Button
@@ -65,9 +76,94 @@ function CodeBlock({ text, copyLabel }: { text: string; copyLabel: string }) {
       >
         <Copy />
       </Button>
-      <pre className="max-h-[28rem] overflow-auto rounded-md border bg-muted/40 p-3 pr-10 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
-        {text}
-      </pre>
+      {children ? (
+        <div className="max-h-[28rem] overflow-auto rounded-md border bg-muted/40 p-3 pr-10 font-mono text-xs leading-relaxed">
+          {children}
+        </div>
+      ) : (
+        <pre className="max-h-[28rem] overflow-auto rounded-md border bg-muted/40 p-3 pr-10 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
+          {text}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+/** One horizontal bar split into labelled, colored segments. */
+function SplitBar({ segments }: { segments: { share: number; className: string; label: string }[] }) {
+  return (
+    <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label={segments.map((segment) => segment.label).join(", ")}>
+      {segments.map((segment) =>
+        segment.share > 0 ? (
+          <div
+            key={segment.label}
+            className={segment.className}
+            style={{ width: `${segment.share * 100}%` }}
+            title={segment.label}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+}
+
+function Legend({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={cn("size-2 rounded-full", className)} />
+      {children}
+    </span>
+  );
+}
+
+/** Where the time went (streams) and how the tokens split between input and output. */
+function Breakdown({
+  result,
+  tokens,
+}: {
+  result: PlaygroundResult;
+  tokens: ReturnType<typeof tokenSummary>;
+}) {
+  const timing = streamTiming(result, tokens?.output);
+  // Only when the endpoint reports both sides: "0 out" on embeddings would mislead.
+  const split =
+    tokens?.input !== undefined && tokens.output !== undefined
+      ? tokenSplit(tokens.input, tokens.output)
+      : null;
+  if (!timing && !split) return null;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {timing && (
+        <div className="space-y-1.5">
+          <SplitBar
+            segments={[
+              { share: timing.ttftShare, className: "bg-chart-4", label: `first token ${ms(timing.ttftMs)}` },
+              { share: 1 - timing.ttftShare, className: "bg-chart-3", label: `generation ${ms(timing.generationMs)}` },
+            ]}
+          />
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+            <Legend className="bg-chart-4">First token {ms(timing.ttftMs)}</Legend>
+            <Legend className="bg-chart-3">Generation {ms(timing.generationMs)}</Legend>
+            {timing.tokensPerSecond !== undefined && (
+              <span className="text-foreground">≈ {timing.tokensPerSecond.toFixed(1)} tok/s</span>
+            )}
+          </div>
+        </div>
+      )}
+      {split && tokens && (
+        <div className="space-y-1.5">
+          <SplitBar
+            segments={[
+              { share: split.inShare, className: "bg-chart-1", label: `${tokens.input ?? 0} input tokens` },
+              { share: split.outShare, className: "bg-chart-2", label: `${tokens.output ?? 0} output tokens` },
+            ]}
+          />
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground tabular-nums">
+            <Legend className="bg-chart-1">{tokens.input ?? 0} in</Legend>
+            <Legend className="bg-chart-2">{tokens.output ?? 0} out</Legend>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -150,7 +246,8 @@ export function Inspector({
             <>
               {tokens.input !== undefined || tokens.output !== undefined ? (
                 <span>
-                  {tokens.input ?? "—"} in / {tokens.output ?? "—"} out
+                  {tokens.input ?? "—"} in
+                  {tokens.output !== undefined && <> / {tokens.output} out</>}
                 </span>
               ) : (
                 tokens.total !== undefined && <span>{tokens.total} total</span>
@@ -165,6 +262,8 @@ export function Inspector({
           )}
         </Stat>
       </div>
+
+      <Breakdown result={result} tokens={tokens} />
 
       {result.aborted && (
         <p className="text-sm text-muted-foreground">Stopped. The partial reply is kept.</p>
@@ -193,7 +292,9 @@ export function Inspector({
           {result.request === null ? (
             <p className="py-4 text-sm text-muted-foreground">GET request, no body.</p>
           ) : (
-            <CodeBlock text={pretty(result.request)} copyLabel="Copy request" />
+            <CodeBlock text={pretty(result.request)} copyLabel="Copy request">
+              <JsonTree value={result.request} />
+            </CodeBlock>
           )}
         </TabsContent>
         <TabsContent value="response" className="space-y-2">
@@ -202,7 +303,9 @@ export function Inspector({
               Assembled from {result.chunks} stream chunk{result.chunks === 1 ? "" : "s"}.
             </p>
           )}
-          <CodeBlock text={pretty(result.body)} copyLabel="Copy response" />
+          <CodeBlock text={pretty(result.body)} copyLabel="Copy response">
+            <JsonTree value={result.body} />
+          </CodeBlock>
         </TabsContent>
         <TabsContent value="curl" className="space-y-2">
           <p className="text-xs text-muted-foreground">

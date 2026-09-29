@@ -21,6 +21,8 @@ export interface ChatState {
   turns: ChatTurn[];
   draft: string;
   stream: boolean;
+  /** Render assistant replies as Markdown (off: raw text). */
+  markdown: boolean;
   /** Kept as typed; empty means "gateway default". */
   temperature: string;
   maxTokens: string;
@@ -100,6 +102,7 @@ function initialPlayground(): GatewayPlayground {
       turns: [],
       draft: "",
       stream: true,
+      markdown: true,
       temperature: "",
       maxTokens: "",
       running: false,

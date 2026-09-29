@@ -35,6 +35,17 @@ export interface PlaygroundKey {
   key: string;
 }
 
+/** PostgREST: the relation is not in the schema cache (migration not applied). */
+const TABLE_MISSING = "PGRST205";
+
+/** A store error an operator can act on. */
+export function describeStoreError(error: { code?: string; message: string }): string {
+  if (error.code === TABLE_MISSING) {
+    return "the playground_keys table does not exist: apply supabase/migrations/20260929000000_playground_keys.sql (supabase db push)";
+  }
+  return error.message;
+}
+
 export function supabaseKeyStore(): PlaygroundKeyStore {
   const table = () => supabaseService().from("playground_keys");
   return {
@@ -43,7 +54,7 @@ export function supabaseKeyStore(): PlaygroundKeyStore {
         .select("gateway_id, key_id, key_ciphertext")
         .eq("gateway_id", gatewayId)
         .maybeSingle();
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(describeStoreError(error));
       return (data as PlaygroundKeyRow | null) ?? null;
     },
     async insert(row) {
@@ -51,11 +62,11 @@ export function supabaseKeyStore(): PlaygroundKeyStore {
         onConflict: "gateway_id",
         ignoreDuplicates: true,
       });
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(describeStoreError(error));
     },
     async deleteIfMatches(gatewayId, keyId) {
       const { error } = await table().delete().eq("gateway_id", gatewayId).eq("key_id", keyId);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(describeStoreError(error));
     },
   };
 }

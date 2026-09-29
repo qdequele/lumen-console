@@ -284,4 +284,26 @@ describe("proxyToGateway", () => {
       source: "console",
     });
   });
+
+  it("reports a key store failure as a 500 console error, not as an unreachable gateway", async () => {
+    const seen = stubUpstream(() => jsonResponse(200, {}));
+    const keys: PlaygroundKeys = {
+      get: async () => {
+        throw new Error("Could not find the table 'public.playground_keys' in the schema cache");
+      },
+      forget: async () => undefined,
+    };
+    const response = await proxyToGateway(
+      browserRequest("POST", "{}"),
+      { conn, userId: "user-1", endpoint: "embeddings" },
+      keys,
+    );
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({
+      error:
+        "could not load the playground key: Could not find the table 'public.playground_keys' in the schema cache",
+      source: "console",
+    });
+    expect(seen).toHaveLength(0);
+  });
 });

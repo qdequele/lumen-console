@@ -5,6 +5,7 @@ import type { GatewayConnection } from "@/lib/server/gateways";
 import { LumenError } from "@/lib/server/lumen";
 import {
   PLAYGROUND_KEY_NAME,
+  describeStoreError,
   forgetPlaygroundKey,
   playgroundKey,
   type PlaygroundKeyRow,
@@ -165,5 +166,24 @@ describe("forgetPlaygroundKey", () => {
     const store = memoryStore({ gateway_id: "gw-1", key_id: "key_b", key_ciphertext: "x" });
     await forgetPlaygroundKey("gw-1", "key_a", store);
     expect(store.rows.get("gw-1")?.key_id).toBe("key_b");
+  });
+});
+
+describe("describeStoreError", () => {
+  it("points at the migration when the table is missing", () => {
+    expect(
+      describeStoreError({
+        code: "PGRST205",
+        message: "Could not find the table 'public.playground_keys' in the schema cache",
+      }),
+    ).toBe(
+      "the playground_keys table does not exist: apply supabase/migrations/20260929000000_playground_keys.sql (supabase db push)",
+    );
+  });
+
+  it("passes other database errors through", () => {
+    expect(describeStoreError({ code: "42501", message: "permission denied" })).toBe(
+      "permission denied",
+    );
   });
 });

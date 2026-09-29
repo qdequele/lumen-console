@@ -98,8 +98,20 @@ export async function proxyToGateway(
       cache: "no-store",
     });
 
+  // Key store failures are the console's own (database, encryption), never
+  // the gateway being unreachable.
+  const getKey = async () => {
+    try {
+      return await keys.get(conn);
+    } catch (error) {
+      if (error instanceof LumenError) throw error;
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new LumenError(`could not load the playground key: ${detail}`, 500);
+    }
+  };
+
   try {
-    let key = await keys.get(conn);
+    let key = await getKey();
     let upstream = await send(key.key);
     if (upstream.status === 401) {
       // A 401 always precedes any body bytes, so this is safe for streams.
@@ -107,8 +119,8 @@ export async function proxyToGateway(
       if (!first.rejected) {
         return new Response(first.text, { status: 401, headers: relayHeaders(upstream.headers) });
       }
-      await keys.forget(conn.id, key.keyId);
-      key = await keys.get(conn);
+      await keys.forget(conn.id, key.keyId).catch(() => undefined);
+      key = await getKey();
       upstream = await send(key.key);
     }
     return new Response(upstream.body, {

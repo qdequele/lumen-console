@@ -148,24 +148,30 @@ function ProviderModels({
   const { rows, olderCount, showOlder, toggleOlder } = useOlderModels(models);
   return (
     <>
-      <Table>
+      {/* Fixed layout with set widths keeps columns aligned across every provider's table. */}
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
             <TableHead className="pl-5">Model</TableHead>
-            <TableHead>Capabilities</TableHead>
-            <TableHead>Released</TableHead>
-            <TableHead className="text-right">$ / 1M in · out</TableHead>
-            <TableHead>Fallbacks</TableHead>
-            {canAdmin && <TableHead className="w-10" />}
+            <TableHead className="w-48">Capabilities</TableHead>
+            <TableHead className="w-32">Released</TableHead>
+            <TableHead className="w-40 text-right">$ / 1M in · out</TableHead>
+            <TableHead className="w-48 pl-6">Fallbacks</TableHead>
+            {canAdmin && <TableHead className="w-14" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((model) => (
             <TableRow key={model.id}>
               <TableCell className="pl-5">
-                <p className="font-mono text-sm">{model.id}</p>
+                <p className="truncate font-mono text-sm" title={model.id}>
+                  {model.id}
+                </p>
                 {model.upstream_id && (
-                  <p className="font-mono text-xs text-muted-foreground">
+                  <p
+                    className="truncate font-mono text-xs text-muted-foreground"
+                    title={model.upstream_id}
+                  >
                     → {model.upstream_id}
                   </p>
                 )}
@@ -191,7 +197,10 @@ function ProviderModels({
                   ? `${usd(model.cost_per_1m_input ?? 0)} · ${usd(model.cost_per_1m_output ?? 0)}`
                   : "—"}
               </TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">
+              <TableCell
+                className="truncate pl-6 font-mono text-xs text-muted-foreground"
+                title={model.fallbacks?.join(", ")}
+              >
                 {model.fallbacks?.join(", ") ?? "—"}
               </TableCell>
               {canAdmin && (

@@ -738,7 +738,7 @@ createServer(async (req, res) => {
         latency_ms: 300 + (rowId % 900),
         status: rowId % 40 === 0 ? 502 : 200,
         metadata: null,
-        created_at: since + Math.floor(((until - since) * rowId) / TOTAL_ROWS),
+        ts: since + Math.floor(((until - since) * rowId) / TOTAL_ROWS),
       });
     }
     const last = rows.at(-1);

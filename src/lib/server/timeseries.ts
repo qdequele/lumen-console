@@ -92,7 +92,7 @@ export class SeriesAccumulator {
       if (filters.key_id && row.key_id !== filters.key_id) continue;
       if (filters.group_id && row.group_id !== filters.group_id) continue;
       const bucket = Math.min(
-        Math.max(Math.floor((row.created_at - this.since) / this.bucketSecs), 0),
+        Math.max(Math.floor((row.ts - this.since) / this.bucketSecs), 0),
         this.bucketCount - 1,
       );
       const name = groupValue(row, groupBy, gatewayName);

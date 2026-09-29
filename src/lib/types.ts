@@ -296,7 +296,8 @@ export interface UsageRow {
   latency_ms: number;
   status: number;
   metadata: string | null;
-  created_at: number;
+  /** Unix seconds. */
+  ts: number;
 }
 
 /** GET /admin/usage/export response page. */

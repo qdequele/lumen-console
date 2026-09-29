@@ -54,6 +54,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ProviderDialog } from "./provider-dialog";
 import { ModelDialog } from "./model-dialog";
+import { OlderModelsToggle, ReleaseDate, useOlderModels } from "./older-models";
 
 /**
  * Health-probe state only — it says nothing about the provider's API key.
@@ -130,6 +131,103 @@ function ProviderSubline({ provider, source }: { provider: ProviderConfig; sourc
   const line = [envVar, provider.base_url].filter(Boolean).join(" · ");
   if (!line) return null;
   return <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{line}</p>;
+}
+
+/** A provider's models, newest first; ones released over a year ago fold away. */
+function ProviderModels({
+  models,
+  canAdmin,
+  onEdit,
+  onDelete,
+}: {
+  models: ModelConfig[];
+  canAdmin: boolean;
+  onEdit: (model: ModelConfig) => void;
+  onDelete: (model: ModelConfig) => void;
+}) {
+  const { rows, olderCount, showOlder, toggleOlder } = useOlderModels(models);
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="pl-5">Model</TableHead>
+            <TableHead>Capabilities</TableHead>
+            <TableHead>Released</TableHead>
+            <TableHead className="text-right">$ / 1M in · out</TableHead>
+            <TableHead>Fallbacks</TableHead>
+            {canAdmin && <TableHead className="w-10" />}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((model) => (
+            <TableRow key={model.id}>
+              <TableCell className="pl-5">
+                <p className="font-mono text-sm">{model.id}</p>
+                {model.upstream_id && (
+                  <p className="font-mono text-xs text-muted-foreground">
+                    → {model.upstream_id}
+                  </p>
+                )}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {model.capabilities.map((capability) => (
+                    <Badge key={capability} variant="outline">
+                      {capability}
+                    </Badge>
+                  ))}
+                  {model.modalities?.includes("image") && (
+                    <Badge variant="outline">vision</Badge>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell className="text-sm">
+                <ReleaseDate date={model.release_date} />
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {model.cost_per_1m_input !== undefined ||
+                model.cost_per_1m_output !== undefined
+                  ? `${usd(model.cost_per_1m_input ?? 0)} · ${usd(model.cost_per_1m_output ?? 0)}`
+                  : "—"}
+              </TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">
+                {model.fallbacks?.join(", ") ?? "—"}
+              </TableCell>
+              {canAdmin && (
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Actions for ${model.id}`}
+                      >
+                        <EllipsisVertical className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(model)}>
+                        <Pencil className="size-4" /> Edit model
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(model)}
+                      >
+                        <Trash2 className="size-4" /> Remove model
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <OlderModelsToggle count={olderCount} shown={showOlder} onToggle={toggleOlder} />
+    </>
+  );
 }
 
 export function ProvidersPanel({
@@ -258,88 +356,14 @@ export function ProvidersPanel({
               No models exposed yet.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-5">Model</TableHead>
-                  <TableHead>Capabilities</TableHead>
-                  <TableHead className="text-right">$ / 1M in · out</TableHead>
-                  <TableHead>Fallbacks</TableHead>
-                  {canAdmin && <TableHead className="w-10" />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {provider.models.map((model) => (
-                  <TableRow key={model.id}>
-                    <TableCell className="pl-5">
-                      <p className="font-mono text-sm">{model.id}</p>
-                      {model.upstream_id && (
-                        <p className="font-mono text-xs text-muted-foreground">
-                          → {model.upstream_id}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {model.capabilities.map((capability) => (
-                          <Badge key={capability} variant="outline">
-                            {capability}
-                          </Badge>
-                        ))}
-                        {model.modalities?.includes("image") && (
-                          <Badge variant="outline">vision</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {model.cost_per_1m_input !== undefined ||
-                      model.cost_per_1m_output !== undefined
-                        ? `${usd(model.cost_per_1m_input ?? 0)} · ${usd(model.cost_per_1m_output ?? 0)}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {model.fallbacks?.join(", ") ?? "—"}
-                    </TableCell>
-                    {canAdmin && (
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Actions for ${model.id}`}
-                            >
-                              <EllipsisVertical className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setEditingModel({ provider: provider.name, model })
-                              }
-                            >
-                              <Pencil className="size-4" /> Edit model
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() =>
-                                deleteModel.mutate({
-                                  provider: provider.name,
-                                  modelId: model.id,
-                                })
-                              }
-                            >
-                              <Trash2 className="size-4" /> Remove model
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ProviderModels
+              models={provider.models}
+              canAdmin={canAdmin}
+              onEdit={(model) => setEditingModel({ provider: provider.name, model })}
+              onDelete={(model) =>
+                deleteModel.mutate({ provider: provider.name, modelId: model.id })
+              }
+            />
           )}
         </section>
       ))}

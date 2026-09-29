@@ -50,7 +50,7 @@ export function PlaygroundPanel({ gateway }: { gateway: GatewayPublic }) {
   return (
     <Tabs value={tab} onValueChange={(value) => setTab(value as PlaygroundTab)} className="gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <TabsList className="max-w-full overflow-x-auto">
+        <TabsList className="max-w-full justify-start overflow-x-auto [scrollbar-width:none]">
           {SUB_TABS.map((entry) => (
             <TabsTrigger key={entry.tab} value={entry.tab}>
               {entry.label}

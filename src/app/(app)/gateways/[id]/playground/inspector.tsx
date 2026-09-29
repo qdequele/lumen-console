@@ -148,9 +148,13 @@ export function Inspector({
         <Stat label="Tokens">
           {tokens ? (
             <>
-              <span>
-                {tokens.input ?? "—"} in / {tokens.output ?? "—"} out
-              </span>
+              {tokens.input !== undefined || tokens.output !== undefined ? (
+                <span>
+                  {tokens.input ?? "—"} in / {tokens.output ?? "—"} out
+                </span>
+              ) : (
+                tokens.total !== undefined && <span>{tokens.total} total</span>
+              )}
               {tokens.searchUnits !== undefined && (
                 <span className="text-xs text-muted-foreground">{tokens.searchUnits} search unit(s)</span>
               )}

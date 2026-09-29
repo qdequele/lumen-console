@@ -3,6 +3,7 @@ import { openSecret, sealSecret } from "@/lib/server/crypto";
 import type { GatewayConnection } from "@/lib/server/gateways";
 import { LumenError, lumenFetch } from "@/lib/server/lumen";
 import { supabaseService } from "@/lib/server/supabase";
+import { PLAYGROUND_KEY_NAME } from "@/lib/playground";
 import type { CreatedKey } from "@/lib/types";
 
 /**
@@ -10,7 +11,7 @@ import type { CreatedKey } from "@/lib/types";
  * calls it with a console-owned key minted once per gateway. Its plaintext
  * is sealed like a master key and never leaves the console server.
  */
-export const PLAYGROUND_KEY_NAME = "lumen-console-playground";
+export { PLAYGROUND_KEY_NAME };
 
 export interface PlaygroundKeyRow {
   gateway_id: string;

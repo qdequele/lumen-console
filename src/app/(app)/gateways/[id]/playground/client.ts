@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { readSse, type SseError } from "@/lib/sse";
 import type { ChatRequest } from "./requests";
 import type { PlaygroundEndpoint, PlaygroundResult } from "./result";
+import { usePlaygroundStore, type GatewayPlayground } from "./store";
 
 const proxyUrl = (gatewayId: string, endpoint: PlaygroundEndpoint) =>
   `/api/gateways/${gatewayId}/v1/${endpoint}`;
@@ -179,7 +180,26 @@ export function useInvalidateUsage(gatewayId: string) {
 export function usePlaygroundCall(gatewayId: string, endpoint: PlaygroundEndpoint) {
   const invalidateUsage = useInvalidateUsage(gatewayId);
   return useMutation({
-    mutationFn: (request: unknown) => callPlayground(gatewayId, endpoint, request),
+    mutationFn: ({ request, signal }: { request: unknown; signal?: AbortSignal }) =>
+      callPlayground(gatewayId, endpoint, request, signal),
     onSettled: invalidateUsage,
   });
+}
+
+/**
+ * Run one non-streaming call for a sub-tab: marks it running, stores the
+ * result in the playground store, refreshes usage.
+ */
+export function useRunner<K extends "embeddings" | "rerank" | "systemone" | "models">(
+  gatewayId: string,
+  key: K,
+  endpoint: PlaygroundEndpoint,
+) {
+  const call = usePlaygroundCall(gatewayId, endpoint);
+  const patch = usePlaygroundStore((store) => store.patch);
+  return async (request: unknown) => {
+    patch(gatewayId, key, { running: true } as Partial<GatewayPlayground[K]>);
+    const result = await call.mutateAsync({ request });
+    patch(gatewayId, key, { running: false, result } as Partial<GatewayPlayground[K]>);
+  };
 }

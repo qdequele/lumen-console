@@ -8,6 +8,7 @@ import { UsagePanel } from "./usage-panel";
 import { KeysPanel } from "./keys-panel";
 import { GroupsPanel } from "./groups-panel";
 import { ProvidersPanel } from "./providers-panel";
+import { PlaygroundPanel } from "./playground-panel";
 import { WebhooksPanel } from "./webhooks-panel";
 import { SettingsPanel } from "./settings-panel";
 
@@ -17,6 +18,7 @@ const PANELS = [
   "keys",
   "groups",
   "providers",
+  "playground",
   "webhooks",
   "settings",
 ] as const;
@@ -59,6 +61,7 @@ export default function GatewayPage({ params, searchParams }: PageProps<"/gatewa
       {tab === "keys" && <KeysPanel gatewayId={id} canAdmin={canAdmin} />}
       {tab === "groups" && <GroupsPanel gatewayId={id} canAdmin={canAdmin} />}
       {tab === "providers" && <ProvidersPanel gatewayId={id} canAdmin={canAdmin} />}
+      {tab === "playground" && <PlaygroundPanel gateway={gateway} />}
       {tab === "webhooks" && <WebhooksPanel gatewayId={id} canAdmin={canAdmin} />}
       {tab === "settings" && <SettingsPanel gateway={gateway} />}
     </div>

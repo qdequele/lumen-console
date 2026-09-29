@@ -9,6 +9,7 @@ import {
   ChartColumn,
   Check,
   ChevronsUpDown,
+  FlaskConical,
   KeyRound,
   LayoutGrid,
   Layers,
@@ -68,6 +69,7 @@ const GATEWAY_NAV = [
   { tab: "keys", label: "API Keys", icon: <KeyRound /> },
   { tab: "groups", label: "Budget Groups", icon: <Layers /> },
   { tab: "providers", label: "Providers", icon: <Cable /> },
+  { tab: "playground", label: "Playground", icon: <FlaskConical /> },
   { tab: "webhooks", label: "Webhooks", icon: <Webhook /> },
   // Settings is admin-only; the shell filters it out for viewers.
   { tab: "settings", label: "Settings", icon: <Settings /> },

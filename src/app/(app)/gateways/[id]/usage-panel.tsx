@@ -187,6 +187,7 @@ export function UsagePanel({ gatewayId }: { gatewayId: string }) {
             { value: "chat", label: "chat" },
             { value: "embed", label: "embed" },
             { value: "rerank", label: "rerank" },
+            { value: "systemone", label: "systemone" },
           ]}
         />
         <FilterSelect

@@ -32,6 +32,21 @@ administer them through each gateway's existing `/admin` API.
   fallbacks, deletes of a fallback target are refused). Every write is
   optimistic-concurrency-guarded by the config content hash (`If-Match`),
   so concurrent edits fail with 409 instead of losing changes.
+- **Playground** — send real requests to each `/v1` endpoint of a gateway
+  (chat with streaming and Stop, embeddings, rerank, SystemOne, the models
+  list) with the models it is configured with, and inspect status, LM error
+  code, latency (split into time to first token and generation, with
+  tokens/sec for streams), the model that actually served the call
+  (fallbacks are badged), token counts, the request and response as a
+  collapsible JSON tree, and an equivalent `curl`. Chat replies render as
+  Markdown (toggle for raw). Open to every role.
+  Calls go through the console with a console-owned **playground virtual
+  key** (`lumen-console-playground`), minted on first use without limits and
+  stored sealed in `playground_keys`; its plaintext never reaches a browser.
+  Admins can cap or disable it from the API Keys tab; a disabled or deleted
+  key is re-minted once, transparently. Playground calls are tagged
+  `x-lumen-metadata: {"source":"console-playground","user":"<user id>"}`
+  and count toward the gateway's usage.
 
   | Route (under `/api/gateways/[id]`) | Methods |
   |---|---|
@@ -42,6 +57,7 @@ administer them through each gateway's existing `/admin` API.
   | `/config/providers/[name]/models/[modelId]` | `PATCH`, `DELETE` |
   | `/webhooks` | `GET` (viewer-safe), `PUT`, `DELETE` |
   | `/webhooks/signing-key` | `PUT`, `DELETE` |
+  | `/v1/[...path]` | Playground proxy: `POST chat/completions`, `embeddings`, `rerank`, `systemone`; `GET models` |
 
   Uses the gateway's `GET`/`PUT /admin/config` (shipped in lumen PR #141):
   `GET` returns `{ config, hash }` (the file verbatim + BLAKE3 hash), `PUT`
@@ -59,7 +75,7 @@ Browser ── Next.js (App Router) ── /api/* route handlers ──► Lumen
                 ▼                        ▼
             Supabase Auth          Supabase Postgres
                                    teams / team_members / invitations
-                                   gateways / gateway_secrets (RLS)
+                                   gateways / gateway_secrets / playground_keys (RLS)
 ```
 
 - **Gateways stay the source of truth** for keys, budgets and usage (ADR 010).
@@ -84,6 +100,7 @@ supabase start        # local Postgres + Auth (Docker)
 cp .env.example .env.local   # paste the keys `supabase start` printed
 openssl rand -base64 32      # -> CONSOLE_ENCRYPTION_KEY
 pnpm dev
+pnpm test             # Vitest unit tests
 ```
 
 Migrations live in `supabase/migrations/` and are applied by
@@ -91,14 +108,19 @@ Migrations live in `supabase/migrations/` and are applied by
 
 ### Without a real gateway
 
-A mock gateway implementing the same admin API surface ships in
-`scripts/mock-gateway.mjs`:
+A mock gateway implementing the same admin API surface, plus the `/v1`
+endpoints the Playground calls, ships in `scripts/mock-gateway.mjs`:
 
 ```bash
 node scripts/mock-gateway.mjs 15091 mock-master-eu eu-west
 ```
 
 Register `http://127.0.0.1:15091` with master key `mock-master-eu` in the UI.
+For the Playground, the mock has scripted cases: `gpt-4o-mini` is always
+served by its fallback, `budget-capped` answers `402 LM-4001`, a chat message
+containing `/error` fails mid-stream, one containing `/markdown` gets a
+Markdown-rich reply, and streams send one token every
+200 ms and log `client aborted` when Stop disconnects them.
 
 ## Production
 
@@ -117,5 +139,5 @@ Register `http://127.0.0.1:15091` with master key `mock-master-eu` in the UI.
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable key (RLS applies) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; reads `gateway_secrets`, resolves member emails |
-| `CONSOLE_ENCRYPTION_KEY` | 32-byte base64 key sealing gateway master keys |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; reads `gateway_secrets` and `playground_keys`, resolves member emails |
+| `CONSOLE_ENCRYPTION_KEY` | 32-byte base64 key sealing gateway master keys and playground keys |

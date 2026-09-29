@@ -23,6 +23,7 @@ import {
   useRotateKey,
 } from "@/lib/hooks";
 import { budget, timeAgo, usd } from "@/lib/format";
+import { PLAYGROUND_KEY_NAME } from "@/lib/playground";
 import type { CreatedKey, VirtualKeyRecord } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +132,17 @@ export function KeysPanel({ gatewayId, canAdmin }: { gatewayId: string; canAdmin
                 return (
                   <TableRow key={key.id} className={deleted ? "opacity-50" : undefined}>
                     <TableCell>
-                      <p className="font-medium">{key.name}</p>
+                      <p className="flex items-center gap-2 font-medium">
+                        {key.name}
+                        {key.name === PLAYGROUND_KEY_NAME && (
+                          <Badge
+                            variant="secondary"
+                            title="Owned by the console: the Playground tab calls /v1 with it"
+                          >
+                            playground
+                          </Badge>
+                        )}
+                      </p>
                       <p className="font-mono text-xs text-muted-foreground">{key.id}</p>
                     </TableCell>
                     <TableCell>

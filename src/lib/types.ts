@@ -164,7 +164,7 @@ export interface ModelConfig {
   id: string;
   /** What the gateway sends upstream; defaults to `id`. */
   upstream_id?: string;
-  /** Any of "chat" | "embed" | "rerank". */
+  /** Any of "chat" | "embed" | "rerank" | "systemone". */
   capabilities: string[];
   /** Input modalities; defaults to ["text"]. */
   modalities?: string[];
